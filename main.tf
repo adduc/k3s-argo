@@ -1,3 +1,18 @@
+## Inputs
+
+variable "argocd_admin_password_hash" {
+  type        = string
+  description = <<-EOT
+    The password for the ArgoCD admin user.
+
+    This is a hash of the password, generated using:
+
+    ```bash
+    htpasswd -nbBC 10 "" $PASSWORD | tr -d ':\n' | sed 's/$2y/$2a/'
+    ```
+  EOT
+}
+
 ## Required Providers
 
 terraform {
@@ -84,13 +99,7 @@ resource "helm_release" "argocd" {
         }
 
         secret = {
-          ##
-          # admin user's password
-          # DO NOT USE THIS IN PRODUCTION
-          ##
-          # generated using: `htpasswd -nbBC 10 "" example | tr -d ':\n' | sed 's/$2y/$2a/'`
-          # password: example
-          "argocdServerAdminPassword" = "$2a$10$4SV.QVw1GFskfY62SJbfjuucDVyLXNntHlS3pbKuQ29Jt0roX8sUS"
+          "argocdServerAdminPassword" = var.argocd_admin_password_hash
         }
       }
       crds = {
