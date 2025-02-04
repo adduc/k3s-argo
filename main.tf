@@ -13,6 +13,19 @@ variable "argocd_admin_password_hash" {
   EOT
 }
 
+variable "repository_credentials" {
+  type        = map(any)
+  description = "Repository credentials"
+  default     = null
+  nullable    = true
+}
+
+variable "applications" {
+  type        = map(any)
+  description = "ArgoCD applications"
+  default     = {}
+}
+
 ## Required Providers
 
 terraform {
@@ -93,7 +106,13 @@ resource "helm_release" "argocd" {
   values = [
     # @see https://github.com/argoproj/argo-helm/blob/main/charts/argo-cd/values.yaml
     yamlencode({
+      crds = {
+        keep = false
+      }
+
       configs = {
+        credentialTemplates = var.repository_credentials
+
         params = {
           "server.insecure" = true
         }
@@ -101,9 +120,6 @@ resource "helm_release" "argocd" {
         secret = {
           "argocdServerAdminPassword" = var.argocd_admin_password_hash
         }
-      }
-      crds = {
-        keep = false
       }
     })
   ]
@@ -157,5 +173,23 @@ resource "kubectl_manifest" "httproute_argo" {
         }]
       }]
     }
+  })
+}
+
+
+
+## Deploy a sample ArgoCD application
+
+resource "kubectl_manifest" "apps" {
+  for_each   = var.applications
+  depends_on = [helm_release.argocd]
+
+  yaml_body = yamlencode({
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name = each.key
+    }
+    spec = each.value
   })
 }
